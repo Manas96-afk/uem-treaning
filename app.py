@@ -1,5 +1,10 @@
 import os
+import sys
 import json
+
+# Ensure UTF-8 output encoding for Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 from openai import OpenAI
 from google import genai
 from google.genai import types
