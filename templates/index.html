@@ -1,0 +1,76 @@
+index.html 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gemini Tool Agent</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🤖 Gemini Tool Agent</h1>
+
+    <div id="chat-box"></div>
+
+    <div class="input-area">
+        <input
+            type="text"
+            id="message"
+            placeholder="Ask anything..."
+        />
+
+        <button onclick="sendMessage()">
+            Send
+        </button>
+    </div>
+
+</div>
+
+<script>
+
+async function sendMessage() {
+
+    const input = document.getElementById("message");
+    const text = input.value;
+
+    if(!text) return;
+
+    const chatBox = document.getElementById("chat-box");
+
+    chatBox.innerHTML += `
+        <div class="user">
+            👤 ${text}
+        </div>
+    `;
+
+    input.value = "";
+
+    const response = await fetch("/chat", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            message: text
+        })
+    });
+
+    const data = await response.json();
+
+    chatBox.innerHTML += `
+        <div class="bot">
+            🤖 ${data.reply}
+        </div>
+    `;
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+</script>
+
+</body>
+</html>
