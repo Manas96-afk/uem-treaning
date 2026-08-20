@@ -8,6 +8,14 @@ from google.genai import types
 # Best practice: Load API key from environment variable or set manually
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
+if not API_KEY:
+    print("❌ ERROR: GEMINI_API_KEY environment variable is not set.")
+    print("Set your API key before running the script:")
+    print("  PowerShell: $env:GEMINI_API_KEY='your_api_key'")
+    print("  CMD:        set GEMINI_API_KEY=your_api_key")
+    print("  Bash:       export GEMINI_API_KEY='your_api_key'")
+    exit(1)
+
 client = genai.Client(api_key=API_KEY)
 
 
