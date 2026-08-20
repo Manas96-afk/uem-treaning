@@ -1,54 +1,67 @@
-style.css
-body{
-    margin:0;
-    background:#0f172a;
-    font-family:Arial, sans-serif;
+body {
+    margin: 0;
+    background: #0f172a;
+    font-family: Arial, sans-serif;
 }
 
-.container{
-    width:800px;
-    margin:40px auto;
+.container {
+    width: 800px;
+    max-width: 90%;
+    margin: 40px auto;
 }
 
-h1{
-    text-align:center;
-    color:white;
+h1 {
+    text-align: center;
+    color: white;
 }
 
-#chat-box{
-    height:500px;
-    overflow-y:auto;
-    background:white;
-    border-radius:10px;
-    padding:20px;
+#chat-box {
+    height: 500px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
 }
 
-.user{
-    background:#dbeafe;
-    padding:10px;
-    border-radius:8px;
-    margin:10px 0;
+.user {
+    background: #dbeafe;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
 }
 
-.bot{
-    background:#dcfce7;
-    padding:10px;
-    border-radius:8px;
-    margin:10px 0;
+.bot {
+    background: #dcfce7;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 10px 0;
+    white-space: pre-wrap;
 }
 
-.input-area{
-    display:flex;
-    margin-top:15px;
+.input-area {
+    display: flex;
+    margin-top: 15px;
+    gap: 10px;
 }
 
-input{
-    flex:1;
-    padding:12px;
-    font-size:16px;
+input {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
 }
 
-button{
-    padding:12px 20px;
-    cursor:pointer;
+button {
+    padding: 12px 20px;
+    cursor: pointer;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+button:hover {
+    background: #2563eb;
 }

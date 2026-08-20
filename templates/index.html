@@ -1,15 +1,15 @@
-index.html 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Gemini Tool Agent</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini & OpenRouter Tool Agent</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 <div class="container">
-
-    <h1>🤖 Gemini Tool Agent</h1>
+    <h1>🤖 Gemini & OpenRouter Tool Agent</h1>
 
     <div id="chat-box"></div>
 
@@ -17,22 +17,23 @@ index.html
         <input
             type="text"
             id="message"
-            placeholder="Ask anything..."
+            placeholder="Ask anything (e.g. Add 15 and 27 or price of iPhone 15)..."
+            onkeypress="handleKeyPress(event)"
         />
-
-        <button onclick="sendMessage()">
-            Send
-        </button>
+        <button onclick="sendMessage()">Send</button>
     </div>
-
 </div>
 
 <script>
+function handleKeyPress(event) {
+    if (event.key === "Enter") {
+        sendMessage();
+    }
+}
 
 async function sendMessage() {
-
     const input = document.getElementById("message");
-    const text = input.value;
+    const text = input.value.trim();
 
     if(!text) return;
 
@@ -40,36 +41,49 @@ async function sendMessage() {
 
     chatBox.innerHTML += `
         <div class="user">
-            👤 ${text}
+            <strong>👤 You:</strong> ${escapeHtml(text)}
         </div>
     `;
 
     input.value = "";
+    chatBox.scrollTop = chatBox.scrollHeight;
 
-    const response = await fetch("/chat", {
-
-        method: "POST",
-
-        headers: {
-            "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify({
-            message: text
-        })
-    });
-
-    const data = await response.json();
-
+    const loadingId = "loading-" + Date.now();
     chatBox.innerHTML += `
-        <div class="bot">
-            🤖 ${data.reply}
+        <div class="bot" id="${loadingId}">
+            <strong>🤖 Agent:</strong> <em>Thinking...</em>
         </div>
     `;
+    chatBox.scrollTop = chatBox.scrollHeight;
 
+    try {
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message: text })
+        });
+
+        const data = await response.json();
+        const loadingElem = document.getElementById(loadingId);
+        if (loadingElem) {
+            loadingElem.innerHTML = `<strong>🤖 Agent:</strong> ${escapeHtml(data.reply)}`;
+        }
+    } catch (err) {
+        const loadingElem = document.getElementById(loadingId);
+        if (loadingElem) {
+            loadingElem.innerHTML = `<strong>🤖 Agent:</strong> <span style="color:red;">Error connecting to server.</span>`;
+        }
+    }
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+}
 </script>
 
 </body>

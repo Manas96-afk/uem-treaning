@@ -1,18 +1,16 @@
 import os
 import sys
 import json
-
-# Ensure UTF-8 output encoding for Windows terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
+from flask import Flask, render_template, request, jsonify
 from openai import OpenAI
 from google import genai
 from google.genai import types
 
-# ============================================================
-# 1. API KEY & PROVIDER DETECTION
-# ============================================================
-# Load from .env file relative to this script's directory
+# Ensure UTF-8 output encoding for Windows terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+# Load from .env file if present
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 
@@ -26,43 +24,15 @@ if os.path.exists(env_path):
                 clean_val = val.strip().strip("'\"")
                 os.environ[clean_key] = clean_val
 
-OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY")
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
-
-# Allow either OPENROUTER_API_KEY or GEMINI_API_KEY
-API_KEY = OPENROUTER_KEY or GEMINI_KEY
-
-if not API_KEY:
-    print("❌ ERROR: Neither OPENROUTER_API_KEY nor GEMINI_API_KEY is set.")
-    print(f"Looked for .env file at: {env_path}")
-    print("Set your OpenRouter key before running:")
-    print("  PowerShell: $env:OPENROUTER_API_KEY='sk-or-v1-...'")
-    print("  CMD:        set OPENROUTER_API_KEY=sk-or-v1-...")
-    print("  Bash:       export OPENROUTER_API_KEY='sk-or-v1-...'")
-    exit(1)
-
-# Auto-detect OpenRouter mode (OpenRouter keys start with 'sk-or-v1')
-IS_OPENROUTER = bool(OPENROUTER_KEY) or API_KEY.startswith("sk-or-v1")
-
+app = Flask(__name__)
 
 # ============================================================
-# 2. TOOL DEFINITIONS (PYTHON FUNCTIONS)
+# TOOL DEFINITIONS (PYTHON FUNCTIONS)
 # ============================================================
 
 def add_numbers(a: float, b: float) -> dict:
     """Adds two numbers together and returns the calculation breakdown."""
-    print("\n" + "=" * 60)
-    print("🔧 TOOL CALLED: add_numbers")
-    print("📥 Arguments received:")
-    print(f"   a = {a}")
-    print(f"   b = {b}")
-
     result = float(a) + float(b)
-
-    print(f"⚙️ Calculating: {a} + {b}")
-    print(f"📤 Tool result: {result}")
-    print("=" * 60)
-
     return {
         "operation": "addition",
         "a": a,
@@ -73,10 +43,6 @@ def add_numbers(a: float, b: float) -> dict:
 
 def product_info(product_name: str) -> dict:
     """Retrieves detailed product pricing and category information by product name."""
-    print("\n" + "=" * 60)
-    print("🔧 TOOL CALLED: product_info")
-    print(f"📥 Product requested: {product_name}")
-
     products = {
         "iphone 15": {
             "name": "iPhone 15",
@@ -97,19 +63,9 @@ def product_info(product_name: str) -> dict:
             "currency": "INR"
         }
     }
-
     product = products.get(product_name.lower())
-
     if product:
-        print("✅ Product found!")
-        print(f"📦 Product: {product['name']}")
-        print(f"💰 Price: ₹{product['price']}")
-        print(f"🏷️ Category: {product['category']}")
-        print("=" * 60)
         return product
-
-    print("❌ Product not found.")
-    print("=" * 60)
     return {
         "error": f"Product '{product_name}' not found."
     }
@@ -155,48 +111,29 @@ openai_tools = [
 
 
 # ============================================================
-# 3. OPENROUTER AGENT
+# CHAT LOGIC (OPENROUTER & NATIVE GEMINI)
 # ============================================================
 
-def run_openrouter_agent():
-    print("\n" + "=" * 60)
-    print("🤖 TOOL-CALLING AGENT (Mode: OpenRouter API)")
-    print("=" * 60)
-    print("\nAvailable tools:")
-    print("🔧 add_numbers")
-    print("🔧 product_info")
-    print("\nType 'exit' to stop.")
-    print("=" * 60)
+def process_message(user_message: str) -> str:
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    api_key = openrouter_key or gemini_key
 
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=API_KEY,
-    )
+    if not api_key:
+        return "❌ Error: Neither OPENROUTER_API_KEY nor GEMINI_API_KEY environment variable is set."
 
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant with access to tools for calculation and product lookup."}
-    ]
+    is_openrouter = bool(openrouter_key) or api_key.startswith("sk-or-v1")
 
-    while True:
+    if is_openrouter:
         try:
-            user_input = input("\n👤 You: ")
-        except (EOFError, KeyboardInterrupt):
-            print("\n👋 Goodbye!")
-            break
-
-        if user_input.strip().lower() == "exit":
-            print("\n👋 Goodbye!")
-            break
-
-        if not user_input.strip():
-            continue
-
-        messages.append({"role": "user", "content": user_input})
-
-        try:
-            print("\n🤖 Sending request to OpenRouter...")
-            print("🧠 Model is deciding which tool to use...")
-
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=api_key,
+            )
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant with access to tools for calculation and product lookup."},
+                {"role": "user", "content": user_message}
+            ]
             response = client.chat.completions.create(
                 model="google/gemini-2.5-flash",
                 messages=messages,
@@ -222,81 +159,57 @@ def run_openrouter_agent():
                         "content": json.dumps(fn_result)
                     })
 
-                # Request final response with tool outputs
                 second_response = client.chat.completions.create(
                     model="google/gemini-2.5-flash",
                     messages=messages
                 )
                 final_msg = second_response.choices[0].message
-                messages.append(final_msg)
-
-                print("\n🤖 Assistant:")
-                print(final_msg.content)
+                return final_msg.content or "No response content."
             else:
-                print("\n🤖 Assistant:")
-                print(msg.content)
+                return msg.content or "No response content."
 
         except Exception as e:
-            print("\n❌ ERROR:")
-            print(e)
-
-
-# ============================================================
-# 4. NATIVE NATIVE GEMINI AGENT
-# ============================================================
-
-def run_gemini_agent():
-    print("\n" + "=" * 60)
-    print("🤖 TOOL-CALLING AGENT (Mode: Native Gemini API)")
-    print("=" * 60)
-    print("\nAvailable tools:")
-    print("🔧 add_numbers")
-    print("🔧 product_info")
-    print("\nType 'exit' to stop.")
-    print("=" * 60)
-
-    client = genai.Client(api_key=API_KEY)
-    chat = client.chats.create(
-        model="gemini-2.5-flash",
-        config=types.GenerateContentConfig(
-            tools=[add_numbers, product_info]
-        )
-    )
-
-    while True:
+            return f"❌ OpenRouter Error: {str(e)}"
+    else:
         try:
-            user_input = input("\n👤 You: ")
-        except (EOFError, KeyboardInterrupt):
-            print("\n👋 Goodbye!")
-            break
-
-        if user_input.strip().lower() == "exit":
-            print("\n👋 Goodbye!")
-            break
-
-        if not user_input.strip():
-            continue
-
-        try:
-            print("\n🤖 Sending request to Gemini...")
-            print("🧠 Gemini is deciding which tool to use...")
-
-            response = chat.send_message(user_input)
-
-            print("\n🤖 Gemini:")
-            print(response.text)
-
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    tools=[add_numbers, product_info]
+                )
+            )
+            return response.text or "No response content."
         except Exception as e:
-            print("\n❌ ERROR:")
-            print(e)
+            return f"❌ Gemini Error: {str(e)}"
 
 
 # ============================================================
-# 5. START PROGRAM
+# FLASK WEB SERVER ROUTES
+# ============================================================
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json() or {}
+    user_msg = data.get("message", "").strip()
+
+    if not user_msg:
+        return jsonify({"reply": "Please enter a valid message."})
+
+    reply = process_message(user_msg)
+    return jsonify({"reply": reply})
+
+
+# ============================================================
+# START WEB APP
 # ============================================================
 
 if __name__ == "__main__":
-    if IS_OPENROUTER:
-        run_openrouter_agent()
-    else:
-        run_gemini_agent()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
