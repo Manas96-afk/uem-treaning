@@ -7,6 +7,15 @@ from google.genai import types
 # ============================================================
 # 1. API KEY & PROVIDER DETECTION
 # ============================================================
+# Load from .env file if present
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip().strip("'\""))
+
 OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 
