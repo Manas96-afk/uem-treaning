@@ -12,14 +12,19 @@ from google.genai import types
 # ============================================================
 # 1. API KEY & PROVIDER DETECTION
 # ============================================================
-# Load from .env file if present
-if os.path.exists(".env"):
-    with open(".env", "r") as f:
+# Load from .env file relative to this script's directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
+
+if os.path.exists(env_path):
+    with open(env_path, "r", encoding="utf-8-sig") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, val = line.split("=", 1)
-                os.environ.setdefault(key.strip(), val.strip().strip("'\""))
+                clean_key = key.strip().lstrip("\ufeff")
+                clean_val = val.strip().strip("'\"")
+                os.environ[clean_key] = clean_val
 
 OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY")
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
@@ -29,12 +34,11 @@ API_KEY = OPENROUTER_KEY or GEMINI_KEY
 
 if not API_KEY:
     print("❌ ERROR: Neither OPENROUTER_API_KEY nor GEMINI_API_KEY is set.")
+    print(f"Looked for .env file at: {env_path}")
     print("Set your OpenRouter key before running:")
     print("  PowerShell: $env:OPENROUTER_API_KEY='sk-or-v1-...'")
     print("  CMD:        set OPENROUTER_API_KEY=sk-or-v1-...")
     print("  Bash:       export OPENROUTER_API_KEY='sk-or-v1-...'")
-    print("Or set GEMINI_API_KEY if using an OpenRouter key there:")
-    print("  PowerShell: $env:GEMINI_API_KEY='sk-or-v1-...'")
     exit(1)
 
 # Auto-detect OpenRouter mode (OpenRouter keys start with 'sk-or-v1')
